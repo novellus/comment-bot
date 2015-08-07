@@ -1,6 +1,6 @@
 n is the number of hidden nodes
-total storage capacity is n (should probably be greater than input string size)
-total stored function data is n^2 + input/output functions
+total storage capacity is n bits (should probably be greater than input string size)
+total stored function data is n^2*(32*2) bits + input/output functions
 
 Program handles ctrl-c to save model before exiting. Kill with other signal if you do not want to overwrite ./model
 Delete ./model if you change the model structure or size in any way!
