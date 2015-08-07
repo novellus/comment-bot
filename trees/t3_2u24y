@@ -1,0 +1,2 @@
+
+{"controversiality": 0, "retrieved_on": 1427426114, "subreddit_id": "t5_1rqwi", "archived": true, "name": "t1_c029w44", "gilded": 0, "link_id": "t3_2u24y", "downs": 0, "score": 1, "score_hidden": false, "body": "It's time for SSH do go away.\nBasing your inter-computer comms on SSH is crufty.\nYou should be using encrypted TCP.", "author": "maht0x0r", "created_utc": "1192724935", "distinguished": null, "edited": false, "author_flair_text": null, "subreddit": "netsec", "ups": 1, "parent_id": "t3_2u24y", "id": "c029w44", "author_flair_css_class": null}

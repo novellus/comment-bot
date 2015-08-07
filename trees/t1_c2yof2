@@ -1,0 +1,2 @@
+
+{"controversiality": 0, "retrieved_on": 1427425268, "subreddit_id": "t5_2fwo", "archived": true, "score": 1, "link_id": "t3_2ylag", "downs": 0, "name": "t1_c02bjwe", "created_utc": "1193431309", "score_hidden": false, "id": "c02bjwe", "author": "hxa7241", "author_flair_text": null, "distinguished": null, "edited": true, "gilded": 0, "subreddit": "programming", "ups": 1, "parent_id": "t1_c2yof2", "body": " i think it could actually be:\r\n\r\n    ...\r\n    val (x,y) = par( gimme(2), gimme(4) )\r\n    x * y\r\n ", "author_flair_css_class": null}
