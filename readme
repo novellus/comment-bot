@@ -1,0 +1,19 @@
+n is the number of hidden nodes
+total storage capacity is n (should probably be greater than input string size)
+total stored function data is n^2 + input/output functions
+
+Program handles ctrl-c to save model before exiting. Kill with other signal if you do not want to overwrite ./model
+Delete ./model if you chagne the model structure or size in any way!
+
+Model is saved to ./model when ctrl-c is hit while program is running.
+Model is loaded from ./model if file is present (no error checking)
+
+Model has 8 input bits (1 character) and 8 output bits (1 character). 
+Computation model has 3 layers, input (x), output (y), and hidden (h); and 3 functions
+    - x_to_h
+    - h_to_h
+    - h_to_y
+    x_to_h and h_to_h are additivly combined to form the hidden state
+    Activation function used on hidden state nodes (tanh)
+
+

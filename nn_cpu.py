@@ -4,7 +4,7 @@ from chainer import cuda, Function, FunctionSet, gradient_check, Variable, optim
 import chainer.functions as F
 
 # predefined globals
-n=8000
+n=16000
 net = None
 
 class CommentNetwork:
@@ -18,7 +18,7 @@ class CommentNetwork:
         return h, y
 
     def forward(self, input_string, output_string, volatile=False):
-        h=Variable(np.zeros((1,n*2),dtype=np.float32), volatile=volatile)
+        h=Variable(np.zeros((1,n),dtype=np.float32), volatile=volatile)
         for c in input_string:
             bits=Variable(np.array([[bool(ord(c)&(2**i)) for i in range(8)]], dtype=np.float32), volatile=volatile) #8 bits, never all 0 for ascii
             h, _ = self.forward_one_step(h, bits)
@@ -92,9 +92,9 @@ def main():
     else:
         #construct network model
         model= FunctionSet(
-            x_to_h = F.Linear(8, n*2),
-            h_to_h = F.Linear(n*2, n*2),
-            h_to_y = F.Linear(n*2, 8)
+            x_to_h = F.Linear(8, n),
+            h_to_h = F.Linear(n, n),
+            h_to_y = F.Linear(n, 8)
         )
 
     #network weight optimizer
