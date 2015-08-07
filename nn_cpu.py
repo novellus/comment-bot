@@ -74,6 +74,7 @@ class CommentNetwork:
 
 def sig_exit(_1, _2):
     saveModel()
+    exit()
 
 
 # Runs the neural net
