@@ -1,4 +1,4 @@
-n is half the number of hidden nodes
+n is the number of hidden nodes
 total storage capacity is n (should probably be greater than input string size)
 total stored function data is n^2 + input/output functions
 
