@@ -73,7 +73,7 @@ class CommentNetwork:
         print 'Saved model'
 
 def sig_exit(_1, _2):
-    saveModel()
+    net.saveModel()
     exit()
 
 
@@ -114,7 +114,8 @@ def main():
                 net.trainFile(f)
 
     print 'Made it through everything, stopping...'
-    saveAndQuit()
+    net.saveModel()
+    exit()
 
 if __name__ == "__main__":
     main()
