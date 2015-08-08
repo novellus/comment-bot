@@ -109,14 +109,14 @@ class CommentNetwork:
 
     # loop over lines in a file identifying if they contain a tree after parsing the json
     def trainFile(self, openFile):
-        for treeText in openFile:
+        for i, treeText in enumerate(openFile):
             #throw away whitespace
             if treeText.strip():
                 #print fileName, treeText
                 tree=json.loads(treeText.strip())
                 #it's a tree, let's train
                 if 'children' in tree:
-                    print 'training '+openFile.name+'\n'
+                    print 'training #'+str(i)+' '+openFile.name+'\n'
                     self.trainTree(tree)
 
     def saveModel(self):
