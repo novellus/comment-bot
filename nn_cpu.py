@@ -3,14 +3,21 @@ import numpy as np
 from chainer import cuda, Function, FunctionSet, gradient_check, Variable, optimizers
 import chainer.functions as F
 
-# predefined globals
-n=16000
-net = None
 
 class CommentNetwork:
-    def __init__(self, mod, opt):
-        self.model = mod
+    def __init__(self, n, opt, mod=None):
+        if self.model==None
+            #construct network model
+            self.model= FunctionSet(
+                x_to_h = F.Linear(8, n),
+                h_to_h = F.Linear(n, n),
+                h_to_y = F.Linear(n, 8)
+            )
+        else:
+            self.model=mod
+
         self.optimizer = opt
+        self.optimizer.setup(model.collect_parameters())
 
     def forward_one_step(self, h, x):
         h    = F.tanh(self.model.x_to_h(x) + self.model.h_to_h(h))
@@ -72,9 +79,9 @@ class CommentNetwork:
         f.close()
         print 'Saved model'
 
-def sig_exit(_1, _2):
-    net.saveModel()
-    exit()
+    def sig_exit(_1, _2):
+        self.saveModel()
+        exit()
 
 
 # Runs the neural net
@@ -83,29 +90,20 @@ def main():
     cuda.init()
 
     model=None
-    if os.path.exists('model'):
-        #load preexisting model history
+    #load preexisting model history, if it exists
+    if os.path.exists('model'): 
         print 'Loading model'
         f=open('model')
         model=pickle.load(f)
         f.close()
         print 'Model Loaded'
-    else:
-        #construct network model
-        model= FunctionSet(
-            x_to_h = F.Linear(8, n),
-            h_to_h = F.Linear(n, n),
-            h_to_y = F.Linear(n, 8)
-        )
 
     #network weight optimizer
     optimizer=optimizers.MomentumSGD()
-    optimizer.setup(model.collect_parameters())
-
-    net = CommentNetwork(model, optimizer)
+    net = CommentNetwork(16000, optimizer, model)
 
     #register ctrl-c behavior
-    signal.signal(signal.SIGINT, sig_exit)
+    signal.signal(signal.SIGINT, net.sig_exit)
 
     # go find comment trees to parse
     for fileName in os.listdir('trees/'):
