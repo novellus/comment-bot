@@ -5,8 +5,9 @@ import chainer.functions as F
 
 
 class CommentNetwork:
-    def __init__(self, n, opt, mod=None):
+    def __init__(self, n, opt, mod=None, use_gpu=False):
         self.n=n
+        self.use_gpu=use_gpu
         if mod==None:
             #construct network model
             self.model= FunctionSet(
@@ -17,22 +18,36 @@ class CommentNetwork:
         else:
             self.model=mod
 
+        if self.use_gpu:
+            self.model.to_gpu()
+        else:
+            self.model.to_cpu()
+
         self.optimizer = opt
         self.optimizer.setup(self.model.collect_parameters())
 
         #constants
-        self.null_byte=Variable(np.array([[0]*8], dtype=np.float32))
+        self.null_byte=np.array([[0]*8], dtype=np.float32)
+        if self.use_gpu:
+            self.null_byte=cuda.to_gpu(self.null_byte)
+        self.null_byte=Variable(self.null_byte)
 
     def forward_one_step(self, h, x):
-        h    = F.tanh(self.model.x_to_h(x) + self.model.h_to_h(h))
+        h    = F.tanh(self.model.x_to_h(x) + self.model.h_to_h(h)) 
         y    = self.model.h_to_y(h)
         return h, y
 
     def forward(self, input_string, output_string, truncateSize=500, volatile=False):
         #feed variable in, ignoring output until model has whole input string
-        h=Variable(np.zeros((1,self.n),dtype=np.float32), volatile=volatile)
+        h=np.zeros((1,self.n),dtype=np.float32)
+        if self.use_gpu:
+            h=cuda.to_gpu(h)
+        h=Variable(h, volatile=volatile)
         for c in input_string:
-            bits=Variable(np.array([[bool(ord(c)&(2**i)) for i in range(8)]], dtype=np.float32), volatile=volatile) #8 bits, never all 0 for ascii
+            bits=np.array([[bool(ord(c)&(2**i)) for i in range(8)]], dtype=np.float32)
+            if self.use_gpu:
+                bits=cuda.to_gpu(bits)
+            bits=Variable(bits, volatile=volatile) #8 bits, never all 0 for ascii
             h, _ = self.forward_one_step(h, bits)
 
         #prep for training
@@ -43,8 +58,12 @@ class CommentNetwork:
 
         #Read output by prompting with null bytes.; train with training output
         for c in output_string:
+            bits=np.array([[bool(ord(c)&(2**i)) for i in range(8)]], dtype=np.float32)
+            if self.use_gpu:
+                bits=cuda.to_gpu(bits)
+            bits=Variable(bits, volatile=volatile)
             h, yc = self.forward_one_step(h, self.null_byte)
-            loss+=F.mean_squared_error(yc, Variable(np.array([[bool(ord(c)&(2**i)) for i in range(8)]], dtype=np.float32)))
+            loss+=F.mean_squared_error(yc, bits)
             if not any(yc.data[0]): #null byte signifies end of sequence
                 nullEnd=True
             if not nullEnd:
@@ -125,7 +144,7 @@ def main():
 
     #network weight optimizer
     optimizer=optimizers.MomentumSGD()
-    net = CommentNetwork(16000, optimizer, model)
+    net = CommentNetwork(100, optimizer, model, use_gpu=True)
 
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
