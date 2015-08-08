@@ -5,11 +5,13 @@ import chainer.functions as F
 
 
 class CommentNetwork:
-    def __init__(self, n, saveFile, opt, lossFunc, mod=None, use_gpu=False):
+    def __init__(self, n, saveFile, opt, lossFunc, mod=None, use_gpu=False, numDirectIterations=1):
         self.n=n
         self.saveFile=saveFile
         self.use_gpu=use_gpu
         self.lossFunc=lossFunc
+        self.numDirectIterations=numDirectIterations
+
         if mod==None:
             #construct network model
             self.model= FunctionSet(
@@ -99,8 +101,11 @@ class CommentNetwork:
                 prompt=tree['body']
                 trainResponse=child['body']
                 if prompt!='[deleted]' and trainResponse!='[deleted]' and prompt and trainResponse:
-                    givenResponse, nullEnd=self.forward(prompt, trainResponse)
-                    print '<--prompt--'+str(len(prompt))+'chars-->\n', prompt, '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', trainResponse, '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', repr(givenResponse), '\n\n'
+                    for i in range(self.numDirectIterations):
+                        givenResponse, nullEnd=self.forward(prompt, trainResponse)
+                        print '<#'+str(i)+'--prompt--'+str(len(prompt))+'chars-->\n', prompt, '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', trainResponse, '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', repr(givenResponse), '\n\n'
+                        if givenResponse==trainResponse:
+                            break
 
     # loop over lines in a file identifying if they contain a tree after parsing the json
     def trainFile(self, openFile):
@@ -129,7 +134,8 @@ class CommentNetwork:
 # Runs the neural net
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('-lm', metavar='file', type=str, dest='modelFile', help='optional, file to load preexisting model from')
+    parser.add_argument('n', type=int, help='number of hidden nodes')
+    parser.add_argument('-l', metavar='file', type=str, dest='modelFile', help='file to load preexisting model from; n must match model')
     parser.add_argument('--gpu', action='store_const', dest='use_gpu', const=True, default=False, help='Flag to use gpu, omit to use cpu')
     parser.add_argument('saveFile', type=str, help='filename to save model to')
     args=parser.parse_args()
@@ -147,8 +153,9 @@ def main():
         print 'Model Loaded'
 
     #network weight optimizer
-    optimizer=optimizers.MomentumSGD()
-    net = CommentNetwork(1000, args.saveFile, optimizer, lambda y1, y2: F.mean_squared_error(y1, y2)/100, model, use_gpu=args.use_gpu)
+    optimizer=optimizers.MomentumSGD(lr=0.0001, momentum=0.3)
+    lossFunc=lambda y1, y2: F.mean_squared_error(y1, y2)
+    net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=50)
 
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
