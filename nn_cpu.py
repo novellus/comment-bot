@@ -1,12 +1,13 @@
-import os, json, pickle, signal, sys
+import os, json, pickle, signal, sys, argparse, functools
 import numpy as np
 from chainer import cuda, Function, FunctionSet, gradient_check, Variable, optimizers
 import chainer.functions as F
 
 
 class CommentNetwork:
-    def __init__(self, n, opt, mod=None, use_gpu=False):
+    def __init__(self, n, saveFile, opt, mod=None, use_gpu=False):
         self.n=n
+        self.saveFile=saveFile
         self.use_gpu=use_gpu
         if mod==None:
             #construct network model
@@ -115,7 +116,7 @@ class CommentNetwork:
 
     def saveModel(self):
         print 'Stopped computation, saving model. Please wait...'
-        f=open('model','w')
+        f=open(self.saveFile,'w')
         pickle.dump(self.model, f)
         f.close()
         print 'Saved model'
@@ -127,21 +128,27 @@ class CommentNetwork:
 
 # Runs the neural net
 def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('-lm', metavar='file', type=str, dest='modelFile', help='optional, file to load preexisting model from')
+    parser.add_argument('--gpu', action='store_const', dest='use_gpu', const=True, default=False, help='Flag to use gpu, omit to use cpu')
+    parser.add_argument('saveFile', type=str, help='filename to save model to')
+    args=parser.parse_args()
 
-    cuda.init()
+    if args.use_gpu:
+        cuda.init()
 
     model=None
     #load preexisting model history, if it exists
-    if os.path.exists('model'): 
+    if args.modelFile and os.path.exists(args.modelFile): 
         print 'Loading model'
-        f=open('model')
+        f=open(args.modelFile)
         model=pickle.load(f)
         f.close()
         print 'Model Loaded'
 
     #network weight optimizer
     optimizer=optimizers.MomentumSGD()
-    net = CommentNetwork(100, optimizer, model, use_gpu=False)
+    net = CommentNetwork(100, args.saveFile, optimizer, model, use_gpu=args.use_gpu)
 
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
