@@ -99,7 +99,6 @@ class CommentNetwork:
                 prompt=tree['body']
                 trainResponse=child['body']
                 if prompt!='[deleted]' and trainResponse!='[deleted]' and prompt and trainResponse:
-                    self.optimizer.zero_grads()
                     givenResponse, nullEnd=self.forward(prompt, trainResponse)
                     print '<--prompt--'+str(len(prompt))+'chars-->\n', prompt, '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', trainResponse, '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', repr(givenResponse), '\n\n'
 
