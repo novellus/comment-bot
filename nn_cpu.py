@@ -5,10 +5,11 @@ import chainer.functions as F
 
 
 class CommentNetwork:
-    def __init__(self, n, saveFile, opt, mod=None, use_gpu=False):
+    def __init__(self, n, saveFile, opt, lossFunc, mod=None, use_gpu=False):
         self.n=n
         self.saveFile=saveFile
         self.use_gpu=use_gpu
+        self.lossFunc=lossFunc
         if mod==None:
             #construct network model
             self.model= FunctionSet(
@@ -73,12 +74,12 @@ class CommentNetwork:
                 bits=cuda.to_gpu(bits)
             bits=Variable(bits, volatile=volatile)
             h, yc = self.forward_one_step(h, self.null_byte)
-            loss+=F.mean_squared_error(yc, bits)
+            loss+=self.lossFunc(yc, bits)
             y, nullEnd, truncateSize = yc_translation(yc, y, nullEnd, truncateSize)
 
         #reinforce null byte as end of sequence
         h, yc = self.forward_one_step(h, self.null_byte) 
-        loss+=F.mean_squared_error(yc, self.null_byte)
+        loss+=self.lossFunc(yc, self.null_byte)
         y, nullEnd, truncateSize = yc_translation(yc, y, nullEnd, truncateSize)
 
         #continue reading out as long as network does not terminate and we have not hit TruncateSize
@@ -100,7 +101,7 @@ class CommentNetwork:
                 if prompt!='[deleted]' and trainResponse!='[deleted]' and prompt and trainResponse:
                     self.optimizer.zero_grads()
                     givenResponse, nullEnd=self.forward(prompt, trainResponse)
-                    print '<--prompt--'+str(len(prompt))+'chars-->\n', prompt, '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', trainResponse, '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', givenResponse, '\n\n'
+                    print '<--prompt--'+str(len(prompt))+'chars-->\n', prompt, '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', trainResponse, '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', repr(givenResponse), '\n\n'
 
     # loop over lines in a file identifying if they contain a tree after parsing the json
     def trainFile(self, openFile):
@@ -148,7 +149,7 @@ def main():
 
     #network weight optimizer
     optimizer=optimizers.MomentumSGD()
-    net = CommentNetwork(100, args.saveFile, optimizer, model, use_gpu=args.use_gpu)
+    net = CommentNetwork(1000, args.saveFile, optimizer, lambda y1, y2: F.mean_squared_error(y1, y2)/100, model, use_gpu=args.use_gpu)
 
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
