@@ -56,6 +56,15 @@ class CommentNetwork:
         nullEnd=False
         loss=0
 
+        def yc_translation(yc, y, nullEnd, truncateSize):
+            yc=sum([bool(round(bit))*(2**i_bit) for i_bit, bit in enumerate(yc.data[0])]) #translate to int
+            if not yc: #null byte signifies end of sequence
+                nullEnd=True
+            if not nullEnd:
+                y+=chr(yc) #translate to character
+                truncateSize-=1
+            return y, nullEnd, truncateSize
+
         #Read output by prompting with null bytes.; train with training output
         for c in output_string:
             bits=np.array([[bool(ord(c)&(2**i)) for i in range(8)]], dtype=np.float32)
@@ -64,29 +73,17 @@ class CommentNetwork:
             bits=Variable(bits, volatile=volatile)
             h, yc = self.forward_one_step(h, self.null_byte)
             loss+=F.mean_squared_error(yc, bits)
-            if not any(yc.data[0]): #null byte signifies end of sequence
-                nullEnd=True
-            if not nullEnd:
-                y+=chr(sum([bool(round(bit))*(2**i_bit) for i_bit, bit in enumerate(yc.data[0])]))
-                truncateSize-=1
+            y, nullEnd, truncateSize = yc_translation(yc, y, nullEnd, truncateSize)
 
         #reinforce null byte as end of sequence
         h, yc = self.forward_one_step(h, self.null_byte) 
         loss+=F.mean_squared_error(yc, self.null_byte)
-        if not any(yc.data[0]):
-            nullEnd=True
-        if not nullEnd:
-            y+=chr(sum([bool(round(bit))*(2**i_bit) for i_bit, bit in enumerate(yc.data[0])]))
-            truncateSize-=1
+        y, nullEnd, truncateSize = yc_translation(yc, y, nullEnd, truncateSize)
 
         #continue reading out as long as network does not terminate and we have not hit TruncateSize
         while not nullEnd and truncateSize>0:
             h, yc = self.forward_one_step(h, self.null_byte)
-            if not any(yc.data[0]):
-                nullEnd=True
-            if not nullEnd:
-                y+=chr(sum([bool(round(bit))*(2**i_bit) for i_bit, bit in enumerate(yc.data[0])]))
-                truncateSize-=1
+            y, nullEnd, truncateSize = yc_translation(yc, y, nullEnd, truncateSize)
 
         #Train
         loss.backward()
@@ -144,7 +141,7 @@ def main():
 
     #network weight optimizer
     optimizer=optimizers.MomentumSGD()
-    net = CommentNetwork(100, optimizer, model, use_gpu=True)
+    net = CommentNetwork(100, optimizer, model, use_gpu=False)
 
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
