@@ -61,7 +61,7 @@ class CommentNetwork:
         loss=0
 
         def yc_translation(yc, y, nullEnd, truncateSize):
-            yc=sum([bool(round(bit))*(2**i_bit) for i_bit, bit in enumerate(yc.data[0])]) #translate to int
+            yc=sum([bool(round(bit))*(2**i_bit) for i_bit, bit in enumerate(cuda.to_cpu(yc.data[0]))]) #translate to int
             if not yc: #null byte signifies end of sequence
                 nullEnd=True
             if not nullEnd:
@@ -155,7 +155,7 @@ def main():
     #network weight optimizer
     optimizer=optimizers.MomentumSGD(lr=0.0001, momentum=0.3)
     lossFunc=lambda y1, y2: F.mean_squared_error(y1, y2)
-    net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=50)
+    net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=100)
 
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
