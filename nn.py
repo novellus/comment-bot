@@ -103,6 +103,7 @@ class CommentNetwork:
 
     def trainTree(self, tree): #DFS training
         if 'children' in tree:
+            allPass=True
             for child in tree['children']:
                 self.trainTree(child)
                 prompt=tree['body']
@@ -113,9 +114,13 @@ class CommentNetwork:
                         print '<#'+str(i)+'--prompt--'+str(len(prompt))+'chars-->\n', repr(prompt), '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', repr(trainResponse), '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', repr(givenResponse)+'\n'
                         if givenResponse==trainResponse:
                             break
+                        else:
+                            allPass=False
+            return allPass
 
     # loop over lines in a file identifying if they contain a tree after parsing the json
     def trainFile(self, openFile):
+        allPass=True
         for i, treeText in enumerate(openFile):
             #throw away whitespace
             if treeText.strip():
@@ -124,7 +129,8 @@ class CommentNetwork:
                 #it's a tree, let's train
                 if 'children' in tree:
                     print 'training #'+str(i)+' '+openFile.name
-                    self.trainTree(tree)
+                    allPass&=self.trainTree(tree)
+        return allPass
 
     def saveModel(self):
         print 'Stopped computation, saving model. Please wait...'
@@ -172,15 +178,17 @@ def main():
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
 
-    epochs=0
     # go find comment trees to parse
-    while epochs<args.numEpochs:
-        epochs+=1
-        print 'Epoch '+str(epochs)+',',
+    for epoch in range(args.numEpochs):
+        print 'Epoch '+str(epoch)+',',
+        allPass=True
         for fileName in map(lambda x:'trees/'+x, os.listdir('trees/')) if not args.treeFile else [args.treeFile]:
             if '.' not in fileName:
                 with open(fileName) as f:
-                    net.trainFile(f)
+                    allPass&=net.trainFile(f)
+        if allPass:
+            print 'Breaking on allPass!!'
+            break
 
     print 'Made it through everything, stopping...'
     net.saveModel()
