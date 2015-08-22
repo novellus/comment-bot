@@ -106,7 +106,7 @@ class CommentNetwork:
                 if prompt!='[deleted]' and trainResponse!='[deleted]' and prompt and trainResponse:
                     for i in range(self.numDirectIterations):
                         givenResponse, nullEnd=self.forward(prompt, trainResponse)
-                        print '<#'+str(i)+'--prompt--'+str(len(prompt))+'chars-->\n', prompt, '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', trainResponse, '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', repr(givenResponse), '\n\n'
+                        print '<#'+str(i)+'--prompt--'+str(len(prompt))+'chars-->\n', repr(prompt), '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', repr(trainResponse), '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', repr(givenResponse)+'\n'
                         if givenResponse==trainResponse:
                             break
 
@@ -119,7 +119,7 @@ class CommentNetwork:
                 tree=json.loads(treeText.strip())
                 #it's a tree, let's train
                 if 'children' in tree:
-                    print 'training #'+str(i)+' '+openFile.name+'\n'
+                    print 'training #'+str(i)+' '+openFile.name
                     self.trainTree(tree)
 
     def saveModel(self):
@@ -171,7 +171,7 @@ def main():
     # go find comment trees to parse
     while epochs<args.numEpochs:
         epochs+=1
-        print 'Epoch '+str(epochs)
+        print 'Epoch '+str(epochs)+',',
         for fileName in map(lambda x:'trees/'+x, os.listdir('trees/')) if not args.treeFile else [args.treeFile]:
             if '.' not in fileName:
                 with open(fileName) as f:
