@@ -150,8 +150,8 @@ def main():
     parser.add_argument('n', type=int, help='number of hidden nodes')
     parser.add_argument('-l', metavar='file', type=str, dest='modelFile', help='file to load preexisting model from; n must match model')
     parser.add_argument('--gpu', action='store_const', dest='use_gpu', const=True, default=False, help='Flag to use gpu, omit to use cpu')
-    parser.add_argument('-ndi', metavar='#', type=int, default=1, dest='numDirectIterations', help='Num direct iterations before processing next tree')
-    parser.add_argument('-e', metavar='#', type=int, default=1, dest='numEpochs', help='Num epochs')
+    parser.add_argument('-ndi', metavar='#', type=int, default=1, dest='numDirectIterations', help='Num direct iterations before processing next tree, default 1')
+    parser.add_argument('-e', metavar='#', type=int, default=1, dest='numEpochs', help='Num epochs, default 1')
     parser.add_argument('-t', metavar='#', type=int, default=10, dest='defaultOutputTruncation', help='Default truncation length for nerual net output. Output will be truncated at max(training response, this value). Defaults to 10 if not specified.')
     parser.add_argument('-i', metavar='file', type=str, dest='treeFile', help='Process only this tree file. If not specified, will process all trees in ./trees')
     parser.add_argument('saveFile', type=str, help='filename to save model to')
@@ -171,6 +171,7 @@ def main():
 
     #network weight optimizer
     optimizer=optimizers.AdaDelta()
+    #optimizer=optimizers.MomentumSGD(momentum=0.9)
     #lossFunc=lambda y1, y2: F.mean_squared_error(y1, y2)
     lossFunc=F.mean_squared_error
     net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=args.numDirectIterations, defaultOutputTruncation=args.defaultOutputTruncation)
