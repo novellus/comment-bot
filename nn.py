@@ -36,10 +36,13 @@ class CommentNetwork:
             self.null_byte=cuda.to_gpu(self.null_byte)
         self.null_byte=Variable(self.null_byte)
 
-    def forward_one_step(self, h, x):
-        h    = F.tanh(self.model.x_to_h(x) + self.model.h_to_h(h)) 
-        y    = self.model.h_to_y(h)
-        return h, y
+    def forward_one_step(self, h, x, computeOutput=True):
+        h=F.sigmoid(self.model.x_to_h(x) + self.model.h_to_h(h))
+        if computeOutput:
+            y=F.sigmoid(self.model.h_to_y(h))
+            return h, y
+        else:
+            return h
 
     def forward(self, input_string, output_string, truncateSize=500, volatile=False):
         #feed variable in, ignoring output until model has whole input string
@@ -52,7 +55,7 @@ class CommentNetwork:
             if self.use_gpu:
                 bits=cuda.to_gpu(bits)
             bits=Variable(bits, volatile=volatile) #8 bits, never all 0 for ascii
-            h, _ = self.forward_one_step(h, bits)
+            h=self.forward_one_step(h, bits, computeOutput=False)
 
         #prep for training
         self.optimizer.zero_grads()
@@ -153,8 +156,9 @@ def main():
         print 'Model Loaded'
 
     #network weight optimizer
-    optimizer=optimizers.MomentumSGD(lr=0.0001, momentum=0.3)
-    lossFunc=lambda y1, y2: F.mean_squared_error(y1, y2)
+    optimizer=optimizers.MomentumSGD(lr=0.01, momentum=0.3)
+    #lossFunc=lambda y1, y2: F.mean_squared_error(y1, y2)
+    lossFunc=F.mean_squared_error
     net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=100)
 
     #register ctrl-c behavior
