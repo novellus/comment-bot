@@ -101,14 +101,14 @@ class CommentNetwork:
         self.optimizer.update()
         return y, nullEnd #nullEnd true if netowrk terminated output sequence. False if output sequence truncated.
 
-    def trainTree(self, tree): #DFS training
+    def trainTree(self, tree, maxCommentLength=float('inf')): #DFS training
         if 'children' in tree:
             allPass=True
             for child in tree['children']:
                 self.trainTree(child)
                 prompt=tree['body']
                 trainResponse=child['body']
-                if prompt!='[deleted]' and trainResponse!='[deleted]' and prompt and trainResponse:
+                if prompt!='[deleted]' and trainResponse!='[deleted]' and prompt and trainResponse and len(prompt)<=maxCommentLength and len(trainResponse)<=maxCommentLength:
                     for i in range(self.numDirectIterations):
                         givenResponse, nullEnd=self.forward(prompt, trainResponse)
                         print '<#'+str(i)+'--prompt--'+str(len(prompt))+'chars-->\n', repr(prompt), '\n<--trainResponse--'+str(len(trainResponse))+'chars-->\n', repr(trainResponse), '\n<--givenResponse--'+str(len(givenResponse))+'chars'+('' if nullEnd else ', truncated')+'-->\n', repr(givenResponse)+'\n'
@@ -119,7 +119,7 @@ class CommentNetwork:
             return allPass
 
     # loop over lines in a file identifying if they contain a tree after parsing the json
-    def trainFile(self, openFile):
+    def trainFile(self, openFile, maxCommentLength=float('inf')):
         allPass=True
         for i, treeText in enumerate(openFile):
             #throw away whitespace
@@ -129,7 +129,7 @@ class CommentNetwork:
                 #it's a tree, let's train
                 if 'children' in tree:
                     print 'training #'+str(i)+' '+openFile.name
-                    allPass&=self.trainTree(tree)
+                    allPass&=self.trainTree(tree, maxCommentLength)
         return allPass
 
     def saveModel(self):
@@ -152,6 +152,7 @@ def main():
     parser.add_argument('--gpu', action='store_const', dest='use_gpu', const=True, default=False, help='Flag to use gpu, omit to use cpu')
     parser.add_argument('-ndi', metavar='#', type=int, default=1, dest='numDirectIterations', help='Num direct iterations before processing next tree, default 1')
     parser.add_argument('-e', metavar='#', type=int, default=1, dest='numEpochs', help='Num epochs, default 1')
+    parser.add_argument('-mcl', metavar='#', type=int, default=float('inf'), dest='maxCommentLength', help='Maximum comment length to train with, in characters. Will ignore any comment/response pair where either comment or response are greater than this number. Default is inf.')
     parser.add_argument('-t', metavar='#', type=int, default=10, dest='defaultOutputTruncation', help='Default truncation length for nerual net output. Output will be truncated at max(training response, this value). Defaults to 10 if not specified.')
     parser.add_argument('-i', metavar='file', type=str, dest='treeFile', help='Process only this tree file. If not specified, will process all trees in ./trees')
     parser.add_argument('saveFile', type=str, help='filename to save model to')
@@ -186,7 +187,7 @@ def main():
         for fileName in map(lambda x:'trees/'+x, os.listdir('trees/')) if not args.treeFile else [args.treeFile]:
             if '.' not in fileName:
                 with open(fileName) as f:
-                    allPass&=net.trainFile(f)
+                    allPass&=net.trainFile(f, args.maxCommentLength)
         if allPass:
             print 'Breaking on allPass!!'
             break
