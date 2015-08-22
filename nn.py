@@ -15,9 +15,9 @@ class CommentNetwork:
         if mod==None:
             #construct network model
             self.model= FunctionSet(
-                x_to_h = F.Linear(8, n),
+                x_to_h = F.Linear(7, n),
                 h_to_h = F.Linear(n, n),
-                h_to_y = F.Linear(n, 8)
+                h_to_y = F.Linear(n, 7)
             )
         else:
             self.model=mod
@@ -31,7 +31,7 @@ class CommentNetwork:
         self.optimizer.setup(self.model.collect_parameters())
 
         #constants
-        self.null_byte=np.array([[0]*8], dtype=np.float32)
+        self.null_byte=np.array([[0]*7], dtype=np.float32)
         if self.use_gpu:
             self.null_byte=cuda.to_gpu(self.null_byte)
         self.null_byte=Variable(self.null_byte)
@@ -51,7 +51,7 @@ class CommentNetwork:
             h=cuda.to_gpu(h)
         h=Variable(h, volatile=volatile)
         for c in input_string:
-            bits=np.array([[bool(ord(c)&(2**i)) for i in range(8)]], dtype=np.float32)
+            bits=np.array([[bool(ord(c)&(2**i)) for i in range(7)]], dtype=np.float32)
             if self.use_gpu:
                 bits=cuda.to_gpu(bits)
             bits=Variable(bits, volatile=volatile) #8 bits, never all 0 for ascii
@@ -74,7 +74,7 @@ class CommentNetwork:
 
         #Read output by prompting with null bytes.; train with training output
         for c in output_string:
-            bits=np.array([[bool(ord(c)&(2**i)) for i in range(8)]], dtype=np.float32)
+            bits=np.array([[bool(ord(c)&(2**i)) for i in range(7)]], dtype=np.float32)
             if self.use_gpu:
                 bits=cuda.to_gpu(bits)
             bits=Variable(bits, volatile=volatile)
@@ -140,6 +140,9 @@ def main():
     parser.add_argument('n', type=int, help='number of hidden nodes')
     parser.add_argument('-l', metavar='file', type=str, dest='modelFile', help='file to load preexisting model from; n must match model')
     parser.add_argument('--gpu', action='store_const', dest='use_gpu', const=True, default=False, help='Flag to use gpu, omit to use cpu')
+    parser.add_argument('-ndi', metavar='#', type=int, default=1, dest='numDirectIterations', help='Num direct iterations before processing next tree')
+    parser.add_argument('-e', metavar='#', type=int, default=1, dest='numEpochs', help='Num epochs')
+    parser.add_argument('-t', metavar='file', type=str, dest='treeFile', help='Process only this tree file. If not specified, will process all trees in ./trees')
     parser.add_argument('saveFile', type=str, help='filename to save model to')
     args=parser.parse_args()
 
@@ -156,19 +159,23 @@ def main():
         print 'Model Loaded'
 
     #network weight optimizer
-    optimizer=optimizers.MomentumSGD(lr=0.01, momentum=0.3)
+    optimizer=optimizers.AdaDelta()
     #lossFunc=lambda y1, y2: F.mean_squared_error(y1, y2)
     lossFunc=F.mean_squared_error
-    net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=100)
+    net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=args.numDirectIterations)
 
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
 
+    epochs=0
     # go find comment trees to parse
-    for fileName in os.listdir('trees/'):
-        if '.' not in fileName:
-            with open('trees/'+fileName) as f:
-                net.trainFile(f)
+    while epochs<args.numEpochs:
+        epochs+=1
+        print 'Epoch '+str(epochs)
+        for fileName in map(lambda x:'trees/'+x, os.listdir('trees/')) if not args.treeFile else [args.treeFile]:
+            if '.' not in fileName:
+                with open(fileName) as f:
+                    net.trainFile(f)
 
     print 'Made it through everything, stopping...'
     net.saveModel()
