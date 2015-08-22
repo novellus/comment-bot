@@ -5,12 +5,13 @@ import chainer.functions as F
 
 
 class CommentNetwork:
-    def __init__(self, n, saveFile, opt, lossFunc, mod=None, use_gpu=False, numDirectIterations=1):
+    def __init__(self, n, saveFile, opt, lossFunc, mod=None, use_gpu=False, numDirectIterations=1, defaultOutputTruncation=10):
         self.n=n
         self.saveFile=saveFile
         self.use_gpu=use_gpu
         self.lossFunc=lossFunc
         self.numDirectIterations=numDirectIterations
+        self.defaultOutputTruncation=defaultOutputTruncation
 
         if mod==None:
             #construct network model
@@ -44,7 +45,10 @@ class CommentNetwork:
         else:
             return h
 
-    def forward(self, input_string, output_string, truncateSize=500, volatile=False):
+    def forward(self, input_string, output_string, truncateSize=None, volatile=False):
+        if truncateSize==None:
+            truncateSize=self.defaultTruncateSize
+
         #feed variable in, ignoring output until model has whole input string
         h=np.zeros((1,self.n),dtype=np.float32)
         if self.use_gpu:
@@ -142,6 +146,7 @@ def main():
     parser.add_argument('--gpu', action='store_const', dest='use_gpu', const=True, default=False, help='Flag to use gpu, omit to use cpu')
     parser.add_argument('-ndi', metavar='#', type=int, default=1, dest='numDirectIterations', help='Num direct iterations before processing next tree')
     parser.add_argument('-e', metavar='#', type=int, default=1, dest='numEpochs', help='Num epochs')
+    parser.add_argument('-t', metavar='#', type=int, default=10, dest='defaultOutputTruncation', help='Default truncation length for nerual net output. Output will be truncated at max(training response, this value). Defaults to 10 if not specified.')
     parser.add_argument('-i', metavar='file', type=str, dest='treeFile', help='Process only this tree file. If not specified, will process all trees in ./trees')
     parser.add_argument('saveFile', type=str, help='filename to save model to')
     args=parser.parse_args()
@@ -162,7 +167,7 @@ def main():
     optimizer=optimizers.AdaDelta()
     #lossFunc=lambda y1, y2: F.mean_squared_error(y1, y2)
     lossFunc=F.mean_squared_error
-    net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=args.numDirectIterations)
+    net = CommentNetwork(args.n, args.saveFile, optimizer, lossFunc, model, use_gpu=args.use_gpu, numDirectIterations=args.numDirectIterations, defaultOutputTruncation=args.defaultOutputTruncation)
 
     #register ctrl-c behavior
     signal.signal(signal.SIGINT, net.sig_exit)
