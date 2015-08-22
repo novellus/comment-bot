@@ -105,7 +105,7 @@ class CommentNetwork:
         if 'children' in tree:
             allPass=True
             for child in tree['children']:
-                self.trainTree(child)
+                self.trainTree(child, maxCommentLength)
                 prompt=tree['body']
                 trainResponse=child['body']
                 if prompt!='[deleted]' and trainResponse!='[deleted]' and prompt and trainResponse and len(prompt)<=maxCommentLength and len(trainResponse)<=maxCommentLength:
