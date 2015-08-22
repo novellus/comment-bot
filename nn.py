@@ -142,7 +142,7 @@ def main():
     parser.add_argument('--gpu', action='store_const', dest='use_gpu', const=True, default=False, help='Flag to use gpu, omit to use cpu')
     parser.add_argument('-ndi', metavar='#', type=int, default=1, dest='numDirectIterations', help='Num direct iterations before processing next tree')
     parser.add_argument('-e', metavar='#', type=int, default=1, dest='numEpochs', help='Num epochs')
-    parser.add_argument('-t', metavar='file', type=str, dest='treeFile', help='Process only this tree file. If not specified, will process all trees in ./trees')
+    parser.add_argument('-i', metavar='file', type=str, dest='treeFile', help='Process only this tree file. If not specified, will process all trees in ./trees')
     parser.add_argument('saveFile', type=str, help='filename to save model to')
     args=parser.parse_args()
 
