@@ -47,7 +47,7 @@ class CommentNetwork:
 
     def forward(self, input_string, output_string, truncateSize=None, volatile=False):
         if truncateSize==None:
-            truncateSize=self.defaultTruncateSize
+            truncateSize=self.defaultOutputTruncation
 
         #feed variable in, ignoring output until model has whole input string
         h=np.zeros((1,self.n),dtype=np.float32)
