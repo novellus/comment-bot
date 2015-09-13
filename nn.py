@@ -29,7 +29,7 @@ class CommentNetwork:
             self.model.to_cpu()
 
         self.optimizer = opt
-        self.optimizer.setup(self.model.collect_parameters())
+        self.optimizer.setup(self.model)
 
         #constants
         self.null_byte=np.array([[0]*7], dtype=np.float32)
@@ -157,9 +157,6 @@ def main():
     parser.add_argument('-i', metavar='file', type=str, dest='treeFile', help='Process only this tree file. If not specified, will process all trees in ./trees')
     parser.add_argument('saveFile', type=str, help='filename to save model to')
     args=parser.parse_args()
-
-    if args.use_gpu:
-        cuda.init()
 
     model=None
     #load preexisting model history, if it exists
