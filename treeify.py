@@ -1,12 +1,35 @@
-import json, os, pickle
+import json, os, pickle, time, mmap
+initialTime=time.time()
 
-allNames={} #every node name indexed by file name
-#any node in a tree can have a new child, but only roots can have new parents.
-#files are named as the parent id of the root node
-
-if os.path.exists('allNames'):
-    with open('allNames') as nameStash:
-        allNames=json.load(nameStash)
+def reverse_readline(filename, buf_size=8192):
+    """a generator that returns the lines of a file in reverse order"""
+    with open(filename) as fh:
+        segment = None
+        offset = 0
+        fh.seek(0, os.SEEK_END)
+        total_size = remaining_size = fh.tell()
+        while remaining_size > 0:
+            offset = min(total_size, offset + buf_size)
+            fh.seek(-offset, os.SEEK_END)
+            buffer = fh.read(min(remaining_size, buf_size))
+            remaining_size -= buf_size
+            lines = buffer.split('\n')
+            # the first line of the buffer is probably not a complete line so
+            # we'll save it and append it to the last line of the next buffer
+            # we read
+            if segment is not None:
+                # if the previous chunk starts right from the beginning of line
+                # do not concact the segment to the last line of new chunk
+                # instead, yield the segment first 
+                if buffer[-1] is not '\n':
+                    lines[-1] += segment
+                else:
+                    yield segment
+            segment = lines[0]
+            for index in range(len(lines) - 1, 0, -1):
+                if len(lines[index]):
+                    yield lines[index]
+        yield segment
 
 #DFS insert
 #returns false if could not insert
@@ -22,76 +45,40 @@ def insert(root, node):
                 return True #not just back propagation of success, also to exit quickly once child is inserted
     return False #node does not belong in the root or any of its children
     
-f_name='Uncompressed/RC_2007-10'
-#f_name='Uncompressed/RC_2009-08'
-with open(f_name) as f:
-    print('processing '+f_name+', approx '+str(int(os.stat(f_name).st_size*2/1000))+' lines')
-    for i_line, line in enumerate(f):
-        if not i_line%10000:
-            print(i_line) #progress printing, mostly debugging
-        if line.strip():
-            comment=json.loads(line)
-            #Is comment the parent of anything?
-            isParent=False
-            for root in os.listdir('trees'):
-                if comment['name']==root:
-                    isParent=True
-                    #add children
-                    if 'children' not in comment:
-                        comment['children']=[]
-                    with open('trees/'+root) as f_child:
-                        for line_child in f_child:
-                            if line_child.strip():
-                                child=json.loads(line_child)
-                                comment['children'].append(child)
-                    os.remove('trees/'+root) #delete unused child tree(s) file
-                    #update allNames dictionary
-                    allNames[comment['parent_id']]=allNames[root]
-                    del allNames[root]
-                    allNames[comment['parent_id']].append(comment['name'])
-                    break #guaranteed to have only one file of this name
-            #Is comment the child of anything?
-            isChild=False
-            for file_name in allNames:
-                for name in allNames[file_name]:
-                    if name==comment['parent_id']:
-                        isChild=True
-                        #traverse the tree to insert
-                        newNodeList=[] #files can have multiple trees in them if they never end up with a parent (some comments are missing)
-                        with open('trees/'+file_name) as f_parent:
-                            for line_parent in f_parent: #I do not expect to be parsing more than one node in a file often, since the root node should appear first chronologically. However the occasional comment is missing so there may be a few cases of this.
-                                if line_parent.strip():
-                                    parent=json.loads(line_parent)
-                                    insert(parent, comment) #try insert on every tree in this file, nothing happens if it doesn't belong
-                                    newNodeList.append(json.dumps(parent))
-                                #Don't break if insert returns true, since we will still need to finish adding all nodes form this file back into the file... (its a good thing this shouldn't happen very often)
-                        #save new parent file
-                        f_parent=open('trees/'+file_name,'w')
-                        f_parent.write('\n'.join(newNodeList))
-                        f_parent.close()
-                        #update allNames
-                        if isParent:
-                            allNames[file_name]+=allNames[comment['parent_id']]
-                            del allNames[comment['parent_id']]
-                        else:
-                            allNames[file_name].append(comment['name'])
-                        break #guaranteed to have only 1 parent
-                if isChild:
-                    break #break this loop if we already found comment's parent
-            #if not a child of anything, either join existing file of children looking for same parent (aka cult), or create new file if we are the first child looking for this parent
-            if not isChild:
-                outputDir='trees/'+comment['parent_id']
-                #update allNames
-                if not isParent:
-                    if os.path.exists(outputDir): #join a cult
-                        allNames[comment['parent_id']].append(comment['name'])
-                    else:
-                        allNames[comment['parent_id']]=[comment['name']]
-                #no else b/c if we are a parent allNames is already up to date
-                #save file
-                f_output=open(outputDir, 'a' if os.path.exists(outputDir) else 'w')
-                f_output.write('\n'+json.dumps(comment))
-                f_output.close()
+Files={} #replacement for file system, keeps all in memory
+processingTimeEstimate=lambda bytes: 0.00000000000004056*bytes*bytes-0.00000011*bytes+2
 
-with open('allNames','w') as nameStash:
-    json.dump(allNames, nameStash)
+f_name='Uncompressed/RC_2007-10'
+totalBytes=int(os.stat(f_name).st_size)
+totalTimeEstimate=processingTimeEstimate(totalBytes)
+bytesProcessed=0
+print 'processing '+f_name+', '+str(totalBytes)+' bytes'
+for i_line, line in enumerate(reverse_readline(f_name)):
+    bytesProcessed+=len(line)
+    if not i_line%1000 and i_line!=0:
+        timeLeftEstimate=totalTimeEstimate-processingTimeEstimate(bytesProcessed)
+        print bytesProcessed, ':', bytesProcessed*100.0/totalBytes, '% ;', time.time()-initialTime, 'secs passed, ~', timeLeftEstimate, 'remaining (', totalTimeEstimate-(timeLeftEstimate+time.time()-initialTime), ' error)'  #progress printing, mostly debugging
+    if line.strip():
+        comment=json.loads(line)
+        #Is comment the parent of anything?
+        for root in Files:
+            if comment['name']==root:
+                #add children
+                if 'children' not in comment:
+                    comment['children']=[]
+                for child in Files[root]:
+                    comment['children'].append(child)
+                del Files[root]
+                break #guaranteed to have only one file of this name
+        if comment['parent_id'] not in Files:
+            Files[comment['parent_id']]=[]
+        Files[comment['parent_id']].append(comment)
+            
+totalFiles=len(Files)
+print 'Saving '+str(totalFiles)+' files'
+for (i, (f_name, f_content)) in enumerate(Files.iteritems()):
+    with open('trees/'+f_name, 'w') as f:
+        json.dump(f_content, f)
+    if not i%1000:
+        print i, '/', totalFiles
+
