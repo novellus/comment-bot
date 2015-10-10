@@ -46,30 +46,26 @@ def insert(root, node):
     return False #node does not belong in the root or any of its children
     
 Files={} #replacement for file system, keeps all in memory
-processingTimeEstimate=lambda bytes: 0.00000000000004056*bytes*bytes-0.00000011*bytes+2
 
-f_name='Uncompressed/RC_2007-10'
+#f_name='Uncompressed/RC_2015-04'
+f_name='Uncompressed/RC_2009-08'
 totalBytes=int(os.stat(f_name).st_size)
-totalTimeEstimate=processingTimeEstimate(totalBytes)
 bytesProcessed=0
 print 'processing '+f_name+', '+str(totalBytes)+' bytes'
 for i_line, line in enumerate(reverse_readline(f_name)):
     bytesProcessed+=len(line)
-    if not i_line%1000 and i_line!=0:
-        timeLeftEstimate=totalTimeEstimate-processingTimeEstimate(bytesProcessed)
-        print bytesProcessed, ':', bytesProcessed*100.0/totalBytes, '% ;', time.time()-initialTime, 'secs passed, ~', timeLeftEstimate, 'remaining (', totalTimeEstimate-(timeLeftEstimate+time.time()-initialTime), ' error)'  #progress printing, mostly debugging
+    if not i_line%100000:
+        print bytesProcessed, ':', bytesProcessed*100.0/totalBytes, '% ;', time.time()-initialTime, 'secs passed'
     if line.strip():
         comment=json.loads(line)
         #Is comment the parent of anything?
-        for root in Files:
-            if comment['name']==root:
-                #add children
-                if 'children' not in comment:
-                    comment['children']=[]
-                for child in Files[root]:
-                    comment['children'].append(child)
-                del Files[root]
-                break #guaranteed to have only one file of this name
+        if comment['name'] in Files:
+            #add children
+            if 'children' not in comment:
+                comment['children']=[]
+            for child in Files[comment['name']]:
+                comment['children'].append(child)
+            del Files[comment['name']]
         if comment['parent_id'] not in Files:
             Files[comment['parent_id']]=[]
         Files[comment['parent_id']].append(comment)
