@@ -1,4 +1,5 @@
-import json, os, pickle, time, mmap
+import json, os, pickle, time, sys
+sys.setrecursionlimit(100000)
 initialTime=time.time()
 
 def reverse_readline(filename, buf_size=8192):
@@ -31,31 +32,32 @@ def reverse_readline(filename, buf_size=8192):
                     yield lines[index]
         yield segment
 
-#DFS insert
-#returns false if could not insert
-def insert(root, node):
-    if root['name']==node['parent_id']:
-        if 'children' not in root:
-            root['children']=[]
-        root['children'].append(node)
-        return True
-    elif 'children' in root:
-        for child in root['children']:
-            if insert(child, node):
-                return True #not just back propagation of success, also to exit quickly once child is inserted
-    return False #node does not belong in the root or any of its children
-    
+treeDir='/media/novellus/160cdbe0-e0b5-4838-b650-5b1f8ee6fbb4/novellus/trees/'
+filesLastAccessed={}
 Files={} #replacement for file system, keeps all in memory
+oldFiles=set() #cache these to disk to free up memory.
 
-#f_name='Uncompressed/RC_2015-04'
-f_name='Uncompressed/RC_2009-08'
-totalBytes=int(os.stat(f_name).st_size)
+f_name='Uncompressed/RC_2015-04'
+#f_name='Uncompressed/RC_2009-08'
+totalBytes=float(os.stat(f_name).st_size)
 bytesProcessed=0
 print 'processing '+f_name+', '+str(totalBytes)+' bytes'
 for i_line, line in enumerate(reverse_readline(f_name)):
     bytesProcessed+=len(line)
-    if not i_line%100000:
-        print bytesProcessed, ':', bytesProcessed*100.0/totalBytes, '% ;', time.time()-initialTime, 'secs passed'
+    if not i_line%10000:
+        elapsedTime=time.time()-initialTime
+        propBytes=bytesProcessed/totalBytes
+        print bytesProcessed, ':', propBytes*100, '% ;', time.time()-initialTime, 'secs passed, ~', elapsedTime/propBytes*(1-propBytes), 'remaining'
+        #Cache oldest files to disk
+        lastAccessedSorted=sorted(filesLastAccessed.keys(), key=lambda x: filesLastAccessed[x])
+        print 'caching', len(lastAccessedSorted)/2, 'files...',
+        for i_file in range(len(lastAccessedSorted)/2):
+            with open(treeDir+lastAccessedSorted[i_file], 'w') as f:
+                json.dump(Files[lastAccessedSorted[i_file]], f)
+            del Files[lastAccessedSorted[i_file]]
+            oldFiles.add(lastAccessedSorted[i_file])
+            del filesLastAccessed[lastAccessedSorted[i_file]]
+        print 'done'
     if line.strip():
         comment=json.loads(line)
         #Is comment the parent of anything?
@@ -66,14 +68,24 @@ for i_line, line in enumerate(reverse_readline(f_name)):
             for child in Files[comment['name']]:
                 comment['children'].append(child)
             del Files[comment['name']]
+            del filesLastAccessed[comment['name']]
+        elif comment['name'] in oldFiles:
+            if 'children' not in comment:
+                comment['children']=[]
+            with open(treeDir+comment['name']) as f:
+                for child in json.load(f):
+                    comment['children'].append(child)
+            os.remove(treeDir+comment['name'])
+            oldFiles.remove(comment['name'])
         if comment['parent_id'] not in Files:
             Files[comment['parent_id']]=[]
         Files[comment['parent_id']].append(comment)
+        filesLastAccessed[comment['parent_id']]=i_line
             
 totalFiles=len(Files)
 print 'Saving '+str(totalFiles)+' files'
 for (i, (f_name, f_content)) in enumerate(Files.iteritems()):
-    with open('trees/'+f_name, 'w') as f:
+    with open(treeDir+f_name, 'w') as f:
         json.dump(f_content, f)
     if not i%1000:
         print i, '/', totalFiles
